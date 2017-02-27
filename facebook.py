@@ -1,5 +1,7 @@
 import json
-from tornado.web RequestHandler
+import urllib
+from datetime import date
+from tornado.web import RequestHandler
 from tornado.escape import json_decode
 from tornado.httpclient import HTTPRequest, AsyncHTTPClient
 from options import options
@@ -40,11 +42,30 @@ class MovieHandler(RequestHandler):
 
         if message_text is not None:
             if message_text == 'movies this week':
-                self.send_text_message(sender_id, message_text)
+                self.fetch_current_movies(sender_id)
             elif message_text == 'movies out now':
                 self.send_text_message(sender_id, message_text)
             else:
                 self.send_text_message(sender_id, message_text)
+
+    def fetch_current_movies(self, sender_id):
+        httpclient = AsyncHTTPClient()
+        url = 'https://api.themoviedb.org/3/discover/movie?'
+        params = {
+            'primary_release_date.gte': date.today().strftime('%Y-%m-%d'),
+            'primary_release_date.lte': date.today().strftime('%Y-%m-%d'),
+            'api_key': options.movie_db_api,
+        }
+        request = HTTPRequest(url + urllib.urlencode(params))
+
+        def send_current_movies(response):
+            data = json_decode(response.body)
+            titles = []
+            for result in data['results']:
+                titles.append(result['title'])
+            self.send_text_message(sender_id, ','.join(titles))
+
+        response = httpclient.fetch(request, callback=send_current_movies)
 
     def send_text_message(self, recipient_id, message_text):
         message = {
@@ -64,6 +85,7 @@ class MovieHandler(RequestHandler):
         request = HTTPRequest('https://graph.facebook.com/v2.6/me/messages?access_token=%s' % (options.page_access_token),
                               method='POST', headers=headers, body=json.dumps(payload))
 
+        # will switch to futures in the future..
         response = httpclient.fetch(request, callback=self.handle_response)
 
     def handle_response(self, response):
