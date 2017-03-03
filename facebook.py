@@ -32,7 +32,7 @@ class MovieHandler(RequestHandler):
                 elif 'postback' in message:
                     self.process_postback(message)
                 else:
-                    print "panic"
+                    print message
 
         self.finish()
 
@@ -73,10 +73,44 @@ class MovieHandler(RequestHandler):
                 'id': recipient_id,
             },
             'message': {
-                'text': message_text,
-                'metadata': 'DEVELOPER_DEFINED_METADATA',
+                'attachment': {
+                    'type': 'template',
+                    'payload': {
+                        'template_type': 'generic',
+                        'elements': [{
+                            'title': 'title',
+                            'subtitle': 'Subtitle',
+                            'item_url': 'https://www.google.com',
+                            'image_url': 'https://www.google.com',
+                            'buttons': [{
+                                'type': 'web_url',
+                                'url': 'https://www.google.com',
+                                'title': 'title',
+                            }, {
+                                'type': 'postback',
+                                'title': 'Call postback',
+                                'payload': 'payload',
+                            }]
+                        }, {
+                            'title': 'title',
+                            'subtitle': 'Subtitle',
+                            'item_url': 'https://www.google.com',
+                            'image_url': 'https://www.google.com',
+                            'buttons': [{
+                                'type': 'web_url',
+                                'url': 'https://www.google.com',
+                                'title': 'title',
+                            }, {
+                                'type': 'postback',
+                                'title': 'Call postback',
+                                'payload': 'payload',
+                            }]
+                        }]
+                    }
+                }
             }
         }
+
         self.send_request(message)
 
     def send_request(self, payload):
@@ -90,7 +124,7 @@ class MovieHandler(RequestHandler):
 
     def handle_response(self, response):
         if response.error:
-            print response.error
+            print response
         else:
             print response.body
 
