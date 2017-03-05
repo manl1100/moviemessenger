@@ -7,7 +7,7 @@ from tornado import gen
 from movies import fetch_movies_from_api
 
 
-class MovieHandler(RequestHandler):
+class FacebookHandler(RequestHandler):
 
     def get(self):
         if self.get_argument('hub.mode') == 'subscribe' and self.get_argument('hub.verify_token') == options.validation_token:

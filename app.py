@@ -1,11 +1,11 @@
 from tornado.ioloop import IOLoop
 from tornado.web import Application
-from facebook import MovieHandler
+from facebook import FacebookHandler
 
 
 def make_app():
     return Application([
-        (r"/webhook", MovieHandler),
+        (r"/webhook", FacebookHandler),
     ])
 
 if __name__ == "__main__":
