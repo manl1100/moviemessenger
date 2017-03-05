@@ -1,6 +1,6 @@
 import json
 import urllib
-from datetime import date
+from datetime import date, timedelta
 from tornado.web import RequestHandler
 from tornado.escape import json_decode
 from tornado.httpclient import HTTPRequest, AsyncHTTPClient
@@ -51,10 +51,14 @@ class MovieHandler(RequestHandler):
     def fetch_current_movies(self, sender_id):
         httpclient = AsyncHTTPClient()
         url = 'https://api.themoviedb.org/3/discover/movie?'
+        start_date = date.today()
+        end_date = date.today() + timedelta(days=7)
         params = {
-            'primary_release_date.gte': date.today().strftime('%Y-%m-%d'),
-            'primary_release_date.lte': date.today().strftime('%Y-%m-%d'),
+            'primary_release_date.gte': start_date.strftime('%Y-%m-%d'),
+            'primary_release_date.lte': end_date.strftime('%Y-%m-%d'),
             'api_key': options.movie_db_api,
+            'region': 'US',
+            'sort_by': 'popularyity.desc'
         }
         request = HTTPRequest(url + urllib.urlencode(params))
 
@@ -62,12 +66,36 @@ class MovieHandler(RequestHandler):
             data = json_decode(response.body)
             titles = []
             for result in data['results']:
-                titles.append(result['title'])
-            self.send_text_message(sender_id, ','.join(titles))
+                if result['poster_path'] is None:
+                    continue
+
+                movie = {
+                    'title': result['title'],
+                    'release_date': result['release_date'],
+                    'poster_url': 'http://image.tmdb.org/t/p/w500' + result['poster_path'],
+                }
+                titles.append(movie)
+            self.send_generic_messsage(sender_id, titles)
 
         response = httpclient.fetch(request, callback=send_current_movies)
 
-    def send_text_message(self, recipient_id, message_text):
+    def send_generic_messsage(self, recipient_id, movies):
+
+        elements = []
+        for movie in movies:
+            element = {
+                'title': movie['title'],
+                'subtitle': movie['release_date'],
+                'item_url': 'https://www.google.com',
+                'image_url': movie['poster_url'],
+                'buttons': [{
+                    'type': 'web_url',
+                    'url': 'https://www.google.com',
+                    'title': 'Take me to google'
+                }]
+            }
+            elements.append(element)
+
         message = {
             'recipient': {
                 'id': recipient_id,
@@ -77,37 +105,22 @@ class MovieHandler(RequestHandler):
                     'type': 'template',
                     'payload': {
                         'template_type': 'generic',
-                        'elements': [{
-                            'title': 'title',
-                            'subtitle': 'Subtitle',
-                            'item_url': 'https://www.google.com',
-                            'image_url': 'https://www.google.com',
-                            'buttons': [{
-                                'type': 'web_url',
-                                'url': 'https://www.google.com',
-                                'title': 'title',
-                            }, {
-                                'type': 'postback',
-                                'title': 'Call postback',
-                                'payload': 'payload',
-                            }]
-                        }, {
-                            'title': 'title',
-                            'subtitle': 'Subtitle',
-                            'item_url': 'https://www.google.com',
-                            'image_url': 'https://www.google.com',
-                            'buttons': [{
-                                'type': 'web_url',
-                                'url': 'https://www.google.com',
-                                'title': 'title',
-                            }, {
-                                'type': 'postback',
-                                'title': 'Call postback',
-                                'payload': 'payload',
-                            }]
-                        }]
+                        'image_aspect_ratio': 'square',
+                        'elements': elements
                     }
                 }
+            }
+        }
+        self.send_request(message)
+
+    def send_text_message(self, recipient_id, message_text):
+        message = {
+            'recipient': {
+                'id': recipient_id,
+            },
+            'message': {
+                'text': message_text,
+                'metadata': 'DEVELOPER_DEFINED_METADATA',
             }
         }
 
