@@ -5,6 +5,8 @@ from tornado.web import RequestHandler
 from tornado.escape import json_decode
 from tornado.httpclient import HTTPRequest, AsyncHTTPClient
 from options import options
+from tornado import gen
+from movies import fetch_movies_from_api
 
 
 class MovieHandler(RequestHandler):
@@ -16,6 +18,7 @@ class MovieHandler(RequestHandler):
             self.set_status(403)
             self.finish()
 
+    @gen.coroutine
     def post(self):
         data = json_decode(self.request.body)
 
@@ -36,51 +39,25 @@ class MovieHandler(RequestHandler):
 
         self.finish()
 
+    @gen.coroutine
     def process_message(self, event):
         sender_id = event['sender']['id']
         message_text = event['message']['text']
 
         if message_text is not None:
             if message_text == 'movies this week':
-                self.fetch_current_movies(sender_id)
+                self.respond_with_current_movies(sender_id)
             elif message_text == 'movies out now':
                 self.send_text_message(sender_id, message_text)
             else:
                 self.send_text_message(sender_id, message_text)
 
-    def fetch_current_movies(self, sender_id):
-        httpclient = AsyncHTTPClient()
-        url = 'https://api.themoviedb.org/3/discover/movie?'
-        start_date = date.today()
-        end_date = date.today() + timedelta(days=7)
-        params = {
-            'primary_release_date.gte': start_date.strftime('%Y-%m-%d'),
-            'primary_release_date.lte': end_date.strftime('%Y-%m-%d'),
-            'api_key': options.movie_db_api,
-            'region': 'US',
-            'sort_by': 'popularyity.desc'
-        }
-        request = HTTPRequest(url + urllib.urlencode(params))
-
-        def send_current_movies(response):
-            data = json_decode(response.body)
-            titles = []
-            for result in data['results']:
-                if result['poster_path'] is None:
-                    continue
-
-                movie = {
-                    'title': result['title'],
-                    'release_date': result['release_date'],
-                    'poster_url': 'http://image.tmdb.org/t/p/w500' + result['poster_path'],
-                }
-                titles.append(movie)
-            self.send_generic_messsage(sender_id, titles)
-
-        response = httpclient.fetch(request, callback=send_current_movies)
+    @gen.coroutine
+    def respond_with_current_movies(self, sender_id):
+        movies = yield fetch_movies_from_api()
+        self.send_generic_messsage(sender_id, movies)
 
     def send_generic_messsage(self, recipient_id, movies):
-
         elements = []
         for movie in movies:
             element = {
@@ -126,20 +103,14 @@ class MovieHandler(RequestHandler):
 
         self.send_request(message)
 
+    @gen.coroutine
     def send_request(self, payload):
         httpclient = AsyncHTTPClient()
         headers = {'Content-type': 'application/json'}
         request = HTTPRequest('https://graph.facebook.com/v2.6/me/messages?access_token=%s' % (options.page_access_token),
                               method='POST', headers=headers, body=json.dumps(payload))
 
-        # will switch to futures in the future..
-        response = httpclient.fetch(request, callback=self.handle_response)
-
-    def handle_response(self, response):
-        if response.error:
-            print response
-        else:
-            print response.body
+        response = yield httpclient.fetch(request)
 
     def process_postback(self, postback):
         pass
