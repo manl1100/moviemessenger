@@ -6,12 +6,15 @@ from tornado.escape import json_decode
 from options import options
 import urllib
 
+URL = 'https://api.themoviedb.org/3/discover/movie?'
+
+POSTER_BASE_URL = 'http://image.tmdb.org/t/p/w500'
+
 
 @gen.coroutine
 def fetch_movies_from_api():
-
     httpclient = AsyncHTTPClient()
-    url = 'https://api.themoviedb.org/3/discover/movie?'
+
     start_date = date.today()
     end_date = date.today() + timedelta(days=7)
     params = {
@@ -21,7 +24,8 @@ def fetch_movies_from_api():
         'region': 'US',
         'sort_by': 'popularyity.desc'
     }
-    request = HTTPRequest(url + urllib.urlencode(params))
+
+    request = HTTPRequest(URL + urllib.urlencode(params))
     response = yield httpclient.fetch(request)
 
     data = json_decode(response.body)
@@ -30,18 +34,16 @@ def fetch_movies_from_api():
         if result['poster_path'] is None:
             continue
 
-        movie = {
-            'title': result['title'],
-            'release_date': result['release_date'],
-            'poster_url': 'http://image.tmdb.org/t/p/w500' + result['poster_path'],
-        }
-        titles.append(movie)
+        poster_url = POSTER_BASE_URL + result['poster_path']
+        titles.append(
+            Movie(result['title'], poster_url, result['release_date']))
 
     raise gen.Return(titles)
 
 
 class Movie(object):
 
-    def __init__(self, title, image_url):
+    def __init__(self, title, poster_url, release_date):
         self.title = title
-        self.image_url = image_url
+        self.poster_url = poster_url
+        self.release_date = release_date

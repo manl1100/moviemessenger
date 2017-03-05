@@ -59,10 +59,10 @@ class MovieHandler(RequestHandler):
         elements = []
         for movie in movies:
             element = {
-                'title': movie['title'],
-                'subtitle': movie['release_date'],
+                'title': movie.title,
+                'subtitle': movie.release_date,
                 'item_url': 'https://www.google.com',
-                'image_url': movie['poster_url'],
+                'image_url': movie.poster_url,
                 'buttons': [{
                     'type': 'web_url',
                     'url': 'https://www.google.com',
