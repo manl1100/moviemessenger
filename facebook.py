@@ -1,6 +1,4 @@
 import json
-import urllib
-from datetime import date, timedelta
 from tornado.web import RequestHandler
 from tornado.escape import json_decode
 from tornado.httpclient import HTTPRequest, AsyncHTTPClient
